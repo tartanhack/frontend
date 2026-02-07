@@ -13,6 +13,7 @@ import type { DetailSelection } from '../components/EventDetailPanel';
 import type { TimelinePoint } from '../components/ScoreTimelineChart';
 import RiskGauge from '../components/RiskGauge';
 import ProactiveAlertBanner from '../components/ProactiveAlertBanner';
+import MoneyFlowSankey from '../components/MoneyFlowSankey';
 import { useMontyData } from '@/api/MontyDataProvider';
 import {
   fetchChildSpending,
@@ -60,6 +61,7 @@ export default function ParentStats() {
 
   const [weeklySpending, setWeeklySpending] = useState<{ week: string; amount: number }[]>([]);
   const [impulseIndicators, setImpulseIndicators] = useState<{ evening_pct: number; weekend_pct: number } | null>(null);
+  const [spendingCategories, setSpendingCategories] = useState<Record<string, { sum: number; count: number; mean: number }> | null>(null);
   const [pipeline, setPipeline] = useState<{ nodes: { id: string; label: string; type: NodeType }[]; edges: { from: string; to: string }[] } | null>(null);
   const [latestDecision, setLatestDecision] = useState<ApiDecisionLog | null>(null);
   const [impulseScores, setImpulseScores] = useState<ApiImpulseScore[]>([]);
@@ -81,6 +83,9 @@ export default function ParentStats() {
         }
         if (data.impulse_indicators) {
           setImpulseIndicators(data.impulse_indicators);
+        }
+        if (data.categories) {
+          setSpendingCategories(data.categories);
         }
       })
       .catch(() => {});
@@ -113,6 +118,39 @@ export default function ParentStats() {
   const decisionDist = useMemo(() => computeDecisionDistribution(impulseScores), [impulseScores]);
   const timePatterns = useMemo(() => computeTimePatterns(impulseScores), [impulseScores]);
   const scoreTimeline = useMemo(() => computeScoreTimeline(impulseScores), [impulseScores]);
+
+  // Transform spending categories into Sankey format
+  const sankeyData = useMemo(() => {
+    if (!spendingCategories) return null;
+
+    const entries = Object.entries(spendingCategories);
+    if (entries.length === 0) return null;
+
+    const totalSpent = entries.reduce((sum, [, data]) => sum + data.sum, 0);
+
+    // Create nodes: Total Spending + all categories
+    const nodes: Array<{ name: string; category?: string }> = [
+      { name: 'Total Spending', category: 'income' },
+    ];
+
+    // Add category nodes
+    entries.forEach(([category]) => {
+      const categoryName = category.charAt(0).toUpperCase() + category.slice(1);
+      nodes.push({ name: categoryName, category: 'category' });
+    });
+
+    // Create links from Total Spending to each category
+    const links: Array<{ source: number; target: number; value: number }> = [];
+    entries.forEach(([, data], idx) => {
+      links.push({
+        source: 0, // Total Spending
+        target: idx + 1, // Category node
+        value: Math.round(data.sum * 100) / 100, // Round to 2 decimals
+      });
+    });
+
+    return { nodes, links };
+  }, [spendingCategories]);
 
   // ── Click Handlers ─────────────────────────────────────────────────
 
@@ -288,6 +326,9 @@ export default function ParentStats() {
       {radarAgg.radarData.some((d) => d.avgWeight > 0) && (
         <ImpulseRadarChart data={radarAgg.radarData} onFactorClick={handleFactorClick} />
       )}
+
+      {/* Money Flow Visualization */}
+      {sankeyData && <MoneyFlowSankey data={sankeyData} childName={selectedChild?.name} />}
 
       {/* Decision Outcomes */}
       {decisionDist.totalDecisions > 0 && (
