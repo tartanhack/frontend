@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, GraduationCap } from 'lucide-react';
+import { Users, GraduationCap, ChevronDown } from 'lucide-react';
 import BottomNav, { PARENT_TABS, KID_TABS } from './components/BottomNav';
+import { useMontyData } from '@/api/MontyDataProvider';
+import KidSelector from './components/KidSelector';
 
 import ParentHome from './parent/ParentHome';
-import ParentFamily from './parent/ParentFamily';
+import ParentKids from './parent/ParentKids';
 import ParentStats from './parent/ParentStats';
 import ParentInsights from './parent/ParentInsights';
 import ParentSettings from './parent/ParentSettings';
@@ -21,23 +23,33 @@ interface Props {
   familyName?: string;
   parentName?: string;
   kidName?: string;
+  kidId?: string;
 }
 
 export default function DashboardPage({
-  familyName = 'The Johnsons',
+  familyName = 'The Thompsons',
   parentName = 'Sarah',
   kidName = 'Emma',
+  kidId = '',
 }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>('parent');
   const [parentTab, setParentTab] = useState('home');
   const [kidTab, setKidTab] = useState('home');
+  const [showKidSelector, setShowKidSelector] = useState(false);
+  const { children } = useMontyData();
+
+  const handleSelectKid = (newKidId: string) => {
+    localStorage.setItem('monty_selected_kid_id', newKidId);
+    // Force reload to update all kid pages
+    window.location.reload();
+  };
 
   const renderParentContent = () => {
     switch (parentTab) {
       case 'home':
         return <ParentHome familyName={familyName} />;
-      case 'family':
-        return <ParentFamily />;
+      case 'kids':
+        return <ParentKids />;
       case 'stats':
         return <ParentStats />;
       case 'insights':
@@ -52,17 +64,17 @@ export default function DashboardPage({
   const renderKidContent = () => {
     switch (kidTab) {
       case 'home':
-        return <KidHome kidName={kidName} kidId="kid-1" />;
+        return <KidHome kidName={kidName} kidId={kidId} />;
       case 'goals':
-        return <KidGoals kidId="kid-1" />;
+        return <KidGoals kidId={kidId} />;
       case 'stats':
-        return <KidStats />;
+        return <KidStats kidId={kidId} />;
       case 'monty':
-        return <KidMonty />;
+        return <KidMonty kidName={kidName} kidId={kidId} />;
       case 'settings':
         return <KidSettings kidName={kidName} familyName={familyName} />;
       default:
-        return <KidHome kidName={kidName} kidId="kid-1" />;
+        return <KidHome kidName={kidName} kidId={kidId} />;
     }
   };
 
@@ -79,29 +91,40 @@ export default function DashboardPage({
               {viewMode === 'parent' ? 'Parent dashboard' : 'Kid dashboard'}
             </p>
           </div>
-          <div className="flex gap-1 rounded-full border border-white/10 bg-white/5 p-0.5">
-            <button
-              onClick={() => setViewMode('parent')}
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.15em] transition sm:text-xs ${
-                viewMode === 'parent'
-                  ? 'bg-teal-500 text-white shadow-sm'
-                  : 'text-white/50 hover:text-white/80'
-              }`}
-            >
-              <Users size={13} />
-              Parent
-            </button>
-            <button
-              onClick={() => setViewMode('kid')}
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.15em] transition sm:text-xs ${
-                viewMode === 'kid'
-                  ? 'bg-lilac-500 text-white shadow-sm'
-                  : 'text-white/50 hover:text-white/80'
-              }`}
-            >
-              <GraduationCap size={13} />
-              Kid
-            </button>
+          <div className="flex items-center gap-3">
+            <div className="flex gap-1 rounded-full border border-white/10 bg-white/5 p-0.5">
+              <button
+                onClick={() => setViewMode('parent')}
+                className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.15em] transition sm:text-xs ${
+                  viewMode === 'parent'
+                    ? 'bg-teal-500 text-white shadow-sm'
+                    : 'text-white/50 hover:text-white/80'
+                }`}
+              >
+                <Users size={13} />
+                Parent
+              </button>
+              <button
+                onClick={() => setViewMode('kid')}
+                className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.15em] transition sm:text-xs ${
+                  viewMode === 'kid'
+                    ? 'bg-lilac-500 text-white shadow-sm'
+                    : 'text-white/50 hover:text-white/80'
+                }`}
+              >
+                <GraduationCap size={13} />
+                Kid
+              </button>
+            </div>
+            {viewMode === 'kid' && children.length > 1 && (
+              <button
+                onClick={() => setShowKidSelector(true)}
+                className="flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/70 transition hover:bg-white/10 hover:text-white"
+              >
+                {kidName}
+                <ChevronDown size={14} />
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -127,6 +150,16 @@ export default function DashboardPage({
         activeTab={viewMode === 'parent' ? parentTab : kidTab}
         onTabChange={viewMode === 'parent' ? setParentTab : setKidTab}
       />
+
+      {/* Kid Selector Modal */}
+      {showKidSelector && (
+        <KidSelector
+          kids={children}
+          selectedKidId={kidId}
+          onSelect={handleSelectKid}
+          onClose={() => setShowKidSelector(false)}
+        />
+      )}
     </div>
   );
 }

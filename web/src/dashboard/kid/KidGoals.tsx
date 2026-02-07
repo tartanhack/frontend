@@ -1,15 +1,73 @@
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { CheckCircle, Circle, Plus, Pencil, Target } from 'lucide-react';
 import SavingsGoalCard from '../components/SavingsGoalCard';
-import { MOCK_GOALS } from '../mockData';
+import AddMoneyModal from '../components/AddMoneyModal';
+import EditGoalModal from '../components/EditGoalModal';
+import NewGoalModal from '../components/NewGoalModal';
+import { fetchChildGoals, addMoneyToGoal, updateGoal, createGoal } from '@/api/client';
+import { transformGoal } from '@/api/transforms';
+import type { Goal } from '../mockData';
 
 interface Props {
   kidId?: string;
 }
 
-export default function KidGoals({ kidId = 'kid-1' }: Props) {
-  const activeGoals = MOCK_GOALS.filter((g) => g.childId === kidId && g.status !== 'completed');
+export default function KidGoals({ kidId = '' }: Props) {
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showAddMoneyModal, setShowAddMoneyModal] = useState<{ id: string; name: string } | null>(null);
+  const [showEditGoalModal, setShowEditGoalModal] = useState<Goal | null>(null);
+  const [showNewGoalModal, setShowNewGoalModal] = useState(false);
+
+  const refreshGoals = () => {
+    if (!kidId) return;
+    fetchChildGoals(kidId)
+      .then((data) => setGoals(data.goals.map((g) => transformGoal(g))))
+      .catch(() => {});
+  };
+
+  const handleAddMoney = async (amount: number) => {
+    if (!kidId || !showAddMoneyModal) return;
+    await addMoneyToGoal(kidId, showAddMoneyModal.id, amount);
+    setShowAddMoneyModal(null);
+    refreshGoals();
+  };
+
+  const handleEditGoal = async (updates: { name?: string; target_amount?: number; weekly_contribution?: number }) => {
+    if (!kidId || !showEditGoalModal) return;
+    await updateGoal(kidId, showEditGoalModal.id, updates);
+    setShowEditGoalModal(null);
+    refreshGoals();
+  };
+
+  const handleCreateGoal = async (name: string, target: number, weekly: number) => {
+    if (!kidId) return;
+    await createGoal(kidId, name, target, weekly);
+    setShowNewGoalModal(false);
+    refreshGoals();
+  };
+
+  useEffect(() => {
+    if (!kidId) { setLoading(false); return; }
+    setLoading(true);
+    fetchChildGoals(kidId)
+      .then((data) => setGoals(data.goals.map((g) => transformGoal(g))))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [kidId]);
+
+  const activeGoals = goals.filter((g) => g.status !== 'completed');
   const totalSaved = activeGoals.reduce((s, g) => s + g.currentAmount, 0);
+
+  if (loading) {
+    return (
+      <div className="space-y-6 pb-24">
+        <div className="h-8 w-48 animate-pulse rounded bg-slate-200" />
+        <div className="h-32 animate-pulse rounded-2xl bg-slate-200" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 pb-24">
@@ -48,12 +106,9 @@ export default function KidGoals({ kidId = 'kid-1' }: Props) {
                   </p>
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase tracking-[0.3em] text-slate-500">Started</p>
+                  <p className="text-[10px] uppercase tracking-[0.3em] text-slate-500">Progress</p>
                   <p className="mt-0.5 text-sm font-semibold text-ink">
-                    {new Date(goal.startDate).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                    })}
+                    {Math.round((goal.currentAmount / goal.targetAmount) * 100)}%
                   </p>
                 </div>
               </div>
@@ -90,11 +145,17 @@ export default function KidGoals({ kidId = 'kid-1' }: Props) {
 
               {/* Actions */}
               <div className="mt-4 flex gap-2">
-                <button className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-lilac-500 px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.2em] text-white transition hover:-translate-y-0.5 hover:shadow-card">
+                <button
+                  onClick={() => setShowAddMoneyModal({ id: goal.id, name: goal.name })}
+                  className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-lilac-500 px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.2em] text-white transition hover:-translate-y-0.5 hover:shadow-card"
+                >
                   <Plus className="h-3.5 w-3.5" />
                   Add Money
                 </button>
-                <button className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full border border-ink/20 px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.2em] text-ink transition hover:border-ink/40">
+                <button
+                  onClick={() => setShowEditGoalModal(goal)}
+                  className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full border border-ink/20 px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.2em] text-ink transition hover:border-ink/40"
+                >
                   <Pencil className="h-3.5 w-3.5" />
                   Edit Goal
                 </button>
@@ -105,10 +166,35 @@ export default function KidGoals({ kidId = 'kid-1' }: Props) {
       </div>
 
       {/* Add New Goal */}
-      <button className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-200 py-4 text-sm font-medium text-slate-400 transition-colors hover:border-lilac-300 hover:text-lilac-500">
+      <button
+        onClick={() => setShowNewGoalModal(true)}
+        className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-200 py-4 text-sm font-medium text-slate-400 transition-colors hover:border-lilac-300 hover:text-lilac-500"
+      >
         <Target className="h-4 w-4" />
         Add New Goal
       </button>
+
+      {/* Modals */}
+      {showAddMoneyModal && (
+        <AddMoneyModal
+          goalName={showAddMoneyModal.name}
+          onSubmit={handleAddMoney}
+          onClose={() => setShowAddMoneyModal(null)}
+        />
+      )}
+      {showEditGoalModal && (
+        <EditGoalModal
+          goal={showEditGoalModal}
+          onSubmit={handleEditGoal}
+          onClose={() => setShowEditGoalModal(null)}
+        />
+      )}
+      {showNewGoalModal && (
+        <NewGoalModal
+          onSubmit={handleCreateGoal}
+          onClose={() => setShowNewGoalModal(false)}
+        />
+      )}
     </div>
   );
 }

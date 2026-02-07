@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bot, Send } from 'lucide-react';
-import { MOCK_CHAT_MESSAGES, type ChatMessage } from '../mockData';
+import { sendChatMessage } from '@/api/client';
+import type { ChatMessage } from '../mockData';
 
 interface Props {
   kidName?: string;
+  kidId?: string;
 }
 
 const QUICK_QUESTIONS = [
@@ -14,32 +16,12 @@ const QUICK_QUESTIONS = [
   'Check my $',
 ];
 
-const MONTY_RESPONSES: Record<string, { text: string; suggestions: string[] }> = {
-  'Help me save': {
-    text: "Great question! Here are some ideas:\n\nPack lunch instead of buying\nAsk for gift money for goals\nDo extra chores for bonus $\nWait 24 hours before buying\n\nWhich sounds doable for you?",
-    suggestions: ['Pack lunch!', 'Extra chores', 'Tell me more'],
-  },
-  'What if I...': {
-    text: "Hmm, what are you thinking about? Tell me what you're considering and I'll help you think it through!",
-    suggestions: ['Buy something', 'Skip saving', 'Change my goal'],
-  },
-  'Goal ideas': {
-    text: "Here are some popular goals kids your age save for:\n\nVideo games ($40-70)\nHeadphones ($30-100)\nSkateboard ($50-150)\nPhone case ($15-40)\nGuitar ($100-200)\n\nAnything catch your eye?",
-    suggestions: ['Yes, tell me more!', 'I have my own idea', 'Maybe later'],
-  },
-  'Check my $': {
-    text: "Here's your snapshot:\n\nSkateboard: $68 of $120 (57%)\nGaming Fund: $12 of $60 (20%)\n\n14 day streak!\nTotal saved: $80\n\nYou're doing amazing! Keep it up!",
-    suggestions: ['Add money', 'Set new goal', 'Thanks!'],
-  },
-  default: {
-    text: "That's a great thought! Let me think about that...\n\nRemember, every smart money decision today builds better habits for tomorrow. I'm here to help whenever you need me!",
-    suggestions: ['Thanks Monty!', 'Help me save', 'Check my goals'],
-  },
-};
-
-export default function KidMonty({ kidName = 'Emma' }: Props) {
-  const [messages, setMessages] = useState<ChatMessage[]>([...MOCK_CHAT_MESSAGES]);
+export default function KidMonty({ kidName = 'Emma', kidId = '' }: Props) {
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    { id: 'c1', from: 'monty', text: `Hi ${kidName}! How can I help you today?`, timestamp: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) },
+  ]);
   const [input, setInput] = useState('');
+  const [sending, setSending] = useState(false);
 
   const addMessage = (text: string, from: 'kid' | 'monty') => {
     const msg: ChatMessage = {
@@ -52,16 +34,26 @@ export default function KidMonty({ kidName = 'Emma' }: Props) {
     return msg;
   };
 
-  const handleSend = (text: string) => {
-    if (!text.trim()) return;
+  const handleSend = async (text: string) => {
+    if (!text.trim() || sending) return;
     addMessage(text, 'kid');
     setInput('');
 
-    // Simulate Monty response
-    setTimeout(() => {
-      const response = MONTY_RESPONSES[text] || MONTY_RESPONSES.default;
-      addMessage(response.text, 'monty');
-    }, 800);
+    if (!kidId) {
+      // Fallback if no kidId
+      setTimeout(() => addMessage("I'm having trouble connecting. Try again later!", 'monty'), 500);
+      return;
+    }
+
+    setSending(true);
+    try {
+      const response = await sendChatMessage(kidId, text);
+      addMessage(response.message, 'monty');
+    } catch {
+      addMessage("Hmm, I'm having a moment. Can you try that again?", 'monty');
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -87,7 +79,8 @@ export default function KidMonty({ kidName = 'Emma' }: Props) {
           <button
             key={q}
             onClick={() => handleSend(q)}
-            className="shrink-0 rounded-full border border-lilac-300/40 bg-lilac-500/10 px-3.5 py-1.5 text-xs font-medium text-lilac-500 transition-colors hover:bg-lilac-500/20 whitespace-nowrap"
+            disabled={sending}
+            className="shrink-0 rounded-full border border-lilac-300/40 bg-lilac-500/10 px-3.5 py-1.5 text-xs font-medium text-lilac-500 transition-colors hover:bg-lilac-500/20 whitespace-nowrap disabled:opacity-50"
           >
             {q}
           </button>
@@ -128,6 +121,26 @@ export default function KidMonty({ kidName = 'Emma' }: Props) {
               </div>
             </motion.div>
           ))}
+          {sending && (
+            <motion.div
+              key="typing"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex justify-start"
+            >
+              <div className="rounded-2xl bg-ink px-4 py-3 rounded-bl-md">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <Bot className="h-3 w-3 text-lilac-300" />
+                  <p className="text-[10px] uppercase tracking-[0.3em] text-lilac-300">Monty</p>
+                </div>
+                <div className="flex gap-1">
+                  <span className="h-2 w-2 rounded-full bg-mist/40 animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <span className="h-2 w-2 rounded-full bg-mist/40 animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <span className="h-2 w-2 rounded-full bg-mist/40 animate-bounce" style={{ animationDelay: '300ms' }} />
+                </div>
+              </div>
+            </motion.div>
+          )}
         </AnimatePresence>
       </div>
 
@@ -139,11 +152,13 @@ export default function KidMonty({ kidName = 'Emma' }: Props) {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSend(input)}
           placeholder={`Ask me anything, ${kidName}...`}
-          className="flex-1 rounded-full border border-slate-200 bg-white px-4 py-3 text-sm text-ink placeholder:text-slate-400 focus:border-lilac-300 focus:outline-none focus:ring-2 focus:ring-lilac-500/20"
+          disabled={sending}
+          className="flex-1 rounded-full border border-slate-200 bg-white px-4 py-3 text-sm text-ink placeholder:text-slate-400 focus:border-lilac-300 focus:outline-none focus:ring-2 focus:ring-lilac-500/20 disabled:opacity-50"
         />
         <button
           onClick={() => handleSend(input)}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-lilac-500 text-white transition hover:-translate-y-0.5 hover:shadow-card"
+          disabled={sending}
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-lilac-500 text-white transition hover:-translate-y-0.5 hover:shadow-card disabled:opacity-50"
         >
           <Send className="h-4 w-4" />
         </button>

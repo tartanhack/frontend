@@ -6,8 +6,10 @@ import { StepShell } from '@/components/StepShell';
 import { useOnboarding } from '../OnboardingProvider';
 import { buildSteps } from '../steps';
 import { useAuth } from '@/auth/AuthProvider';
+import { selectFamilyByKidCount } from '@/api/client';
 
 const STEP_STORAGE_KEY = 'monty_onboarding_step';
+const SELECTED_FAMILY_KEY = 'monty_selected_family_id';
 
 export default function OnboardingPage() {
   const { state, actions } = useOnboarding();
@@ -46,9 +48,22 @@ export default function OnboardingPage() {
     };
   }, []);
 
-  const goNext = () => {
+  const goNext = async () => {
     if (!canContinue) return;
     if (isLast) {
+      // Select a family from database based on kid count
+      try {
+        const result = await selectFamilyByKidCount(state.kidCount);
+        localStorage.setItem(SELECTED_FAMILY_KEY, result.family_id);
+
+        // Update onboarding state with real kid names from database
+        result.children.forEach((child, index) => {
+          actions.updateKid(index, { name: child.name });
+        });
+      } catch (e) {
+        console.error('Failed to select family:', e);
+      }
+
       actions.complete();
       navigate('/dashboard');
       return;

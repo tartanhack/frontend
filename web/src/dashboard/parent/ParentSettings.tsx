@@ -1,15 +1,13 @@
 import { useNavigate } from 'react-router-dom';
 import { User, Bell, Shield, Link, LogOut, Settings, Check, Pencil } from 'lucide-react';
+import { useMontyData } from '@/api/MontyDataProvider';
 
 interface Props {
   familyName?: string;
   parentName?: string;
 }
 
-const KIDS = [
-  { id: 'kid-1', name: 'Emma', age: 10, allowance: '$10/week', initials: 'E', color: 'bg-teal-500' },
-  { id: 'kid-2', name: 'Lucas', age: 7, allowance: '$5/week', initials: 'L', color: 'bg-lilac-500' },
-];
+const KID_COLORS = ['bg-teal-500', 'bg-lilac-500', 'bg-coral-500', 'bg-amber-500'];
 
 const NOTIFICATION_ITEMS = [
   { label: 'Goal milestones', enabled: true },
@@ -19,8 +17,9 @@ const NOTIFICATION_ITEMS = [
   { label: 'Kid messages', enabled: true },
 ];
 
-export default function ParentSettings({ familyName = 'The Johnsons', parentName = 'Sarah' }: Props) {
+export default function ParentSettings({ familyName = 'The Thompsons', parentName = 'Sarah' }: Props) {
   const navigate = useNavigate();
+  const { children } = useMontyData();
 
   const handleReset = () => {
     localStorage.removeItem('monty_onboarding_state');
@@ -64,15 +63,14 @@ export default function ParentSettings({ familyName = 'The Johnsons', parentName
           <h2 className="font-display text-base font-semibold text-ink">Kids Management</h2>
         </div>
         <div className="space-y-3">
-          {KIDS.map((kid) => (
+          {children.map((kid, idx) => (
             <div key={kid.id} className="flex items-center justify-between rounded-xl border border-slate-100 bg-mist px-4 py-3">
               <div className="flex items-center gap-3">
-                <div className={`flex h-8 w-8 items-center justify-center rounded-full ${kid.color} text-xs font-semibold text-white`}>
-                  {kid.initials}
+                <div className={`flex h-8 w-8 items-center justify-center rounded-full ${KID_COLORS[idx % KID_COLORS.length]} text-xs font-semibold text-white`}>
+                  {kid.name.charAt(0).toUpperCase()}
                 </div>
                 <div>
                   <p className="text-sm font-medium text-ink">{kid.name} (age {kid.age})</p>
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Allowance: {kid.allowance}</p>
                 </div>
               </div>
               <button className="inline-flex items-center gap-1 rounded-full border border-ink/20 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-ink transition hover:border-ink/40">

@@ -1,7 +1,12 @@
-import { useState } from 'react';
-import { Brain, Search } from 'lucide-react';
+import { useEffect, useState, useMemo } from 'react';
+import { Brain, Search, Shield, TrendingUp, Tag, Hash } from 'lucide-react';
 import InsightCard from '../components/InsightCard';
-import { MOCK_INSIGHTS } from '../mockData';
+import PredictionTimeline from '../components/PredictionTimeline';
+import { useMontyData } from '@/api/MontyDataProvider';
+import { fetchChildInsights, fetchChildImpulseScores, fetchCheckRisk } from '@/api/client';
+import type { ApiImpulseScore, ApiCheckRiskResponse } from '@/api/client';
+import { transformInsights, computeDecisionDistribution } from '@/api/transforms';
+import type { Insight } from '../mockData';
 
 const FILTERS = [
   { id: 'all', label: 'All Types' },
@@ -12,12 +17,81 @@ const FILTERS = [
 ];
 
 export default function ParentInsights() {
+  const { overview, loading: dataLoading } = useMontyData();
   const [filter, setFilter] = useState('all');
+  const [insights, setInsights] = useState<Insight[]>([]);
+  const [impulseScores, setImpulseScores] = useState<ApiImpulseScore[]>([]);
+  const [riskData, setRiskData] = useState<ApiCheckRiskResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const children = overview?.children ?? [];
+
+  useEffect(() => {
+    if (children.length === 0) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    const firstChild = children[0];
+
+    Promise.all([
+      Promise.all(
+        children.map((child) =>
+          fetchChildInsights(child.id)
+            .then((data) => transformInsights(data.insights, child.id, child.name))
+            .catch(() => [] as Insight[]),
+        ),
+      ),
+      fetchChildImpulseScores(firstChild.id).catch(() => [] as ApiImpulseScore[]),
+      fetchCheckRisk(firstChild.id).catch(() => null as ApiCheckRiskResponse | null),
+    ]).then(([insightResults, scores, risk]) => {
+      setInsights(insightResults.flat());
+      setImpulseScores(scores);
+      setRiskData(risk);
+      setLoading(false);
+    });
+  }, [children.map((c) => c.id).join(',')]);
+
+  // Pattern summary stats
+  const patternStats = useMemo(() => {
+    if (impulseScores.length === 0) return null;
+    const dist = computeDecisionDistribution(impulseScores);
+    const waitedCount = dist.responseData.find((d) => d.name === 'Waited')?.value ?? 0;
+    const resistPct = dist.totalDecisions > 0 ? Math.round((waitedCount / dist.totalDecisions) * 100) : 0;
+    const avgScore = impulseScores.reduce((s, d) => s + d.impulse_score, 0) / impulseScores.length;
+
+    // Top trigger category
+    const catCounts: Record<string, number> = {};
+    for (const s of impulseScores) {
+      const cat = s.merchant_category || 'unknown';
+      catCounts[cat] = (catCounts[cat] ?? 0) + 1;
+    }
+    const topCat = Object.entries(catCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'N/A';
+
+    return [
+      { icon: Shield, label: 'Resistance Rate', value: `${resistPct}%`, color: 'text-teal-700 bg-teal-500/10' },
+      { icon: TrendingUp, label: 'Avg Score', value: avgScore.toFixed(2), color: 'text-coral-700 bg-coral-500/10' },
+      { icon: Tag, label: 'Top Trigger', value: topCat, color: 'text-lilac-500 bg-lilac-500/10' },
+      { icon: Hash, label: 'Decisions', value: String(dist.totalDecisions), color: 'text-slate-600 bg-slate-100' },
+    ];
+  }, [impulseScores]);
 
   const filtered =
     filter === 'all'
-      ? MOCK_INSIGHTS
-      : MOCK_INSIGHTS.filter((i) => i.type === filter);
+      ? insights
+      : insights.filter((i) => i.type === filter);
+
+  if (dataLoading || loading) {
+    return (
+      <div className="space-y-6 pb-24">
+        <div className="h-8 w-48 animate-pulse rounded bg-slate-200" />
+        <div className="h-12 animate-pulse rounded-full bg-slate-200" />
+        <div className="h-24 animate-pulse rounded-2xl bg-slate-200" />
+        <div className="h-24 animate-pulse rounded-2xl bg-slate-200" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 pb-24">
@@ -29,6 +103,31 @@ export default function ParentInsights() {
         </div>
         <h1 className="font-display text-xl font-semibold text-ink sm:text-2xl">AI Insights</h1>
       </div>
+
+      {/* Pattern Summary Banner */}
+      {patternStats && (
+        <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+          {patternStats.map((stat) => (
+            <div
+              key={stat.label}
+              className={`flex min-w-[130px] shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-card`}
+            >
+              <div className={`flex h-7 w-7 items-center justify-center rounded-lg ${stat.color}`}>
+                <stat.icon className="h-3.5 w-3.5" />
+              </div>
+              <div>
+                <p className="text-[9px] uppercase tracking-[0.2em] text-slate-400">{stat.label}</p>
+                <p className="font-mono text-sm font-bold text-ink">{stat.value}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Prediction Timeline */}
+      {riskData && riskData.predictions.length > 0 && (
+        <PredictionTimeline predictions={riskData.predictions} />
+      )}
 
       {/* Filters */}
       <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">

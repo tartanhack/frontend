@@ -18,7 +18,7 @@ export interface TabDef {
 
 export const PARENT_TABS: TabDef[] = [
   { id: 'home', label: 'Home', icon: Home },
-  { id: 'family', label: 'Family', icon: Users },
+  { id: 'kids', label: 'Kids', icon: Users },
   { id: 'stats', label: 'Stats', icon: BarChart3 },
   { id: 'insights', label: 'Insights', icon: Lightbulb },
   { id: 'settings', label: 'Settings', icon: Settings },

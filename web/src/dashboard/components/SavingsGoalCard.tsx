@@ -8,7 +8,9 @@ interface Props {
 }
 
 export default function SavingsGoalCard({ goal, showChild = false, compact = false }: Props) {
-  const pct = Math.min((goal.currentAmount / goal.targetAmount) * 100, 100);
+  const pct = goal.currentAmount && goal.targetAmount
+    ? Math.min((goal.currentAmount / goal.targetAmount) * 100, 100)
+    : 0;
   const remaining = goal.targetAmount - goal.currentAmount;
   const weeksLeft =
     goal.weeklyContribution > 0 ? Math.ceil(remaining / goal.weeklyContribution) : null;

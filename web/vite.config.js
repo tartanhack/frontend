@@ -4,7 +4,10 @@ import path from 'node:path';
 export default defineConfig({
     plugins: [react()],
     server: {
-        allowedHosts: ['.ngrok-free.app']
+        proxy: {
+            '/api': 'http://localhost:8000',
+        },
+        allowedHosts: ['.ngrok-free.app'],
     },
     resolve: {
         alias: {
