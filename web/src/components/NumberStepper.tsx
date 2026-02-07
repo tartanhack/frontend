@@ -13,31 +13,27 @@ export function NumberStepper({
   onChange: (value: number) => void;
 }) {
   return (
-    <div className="flex w-full flex-col gap-2 rounded-3xl border border-slate-200 bg-white p-5 shadow-card sm:gap-3 sm:p-6">
-      <span className="text-xs uppercase tracking-[0.3em] text-slate-500">{label}</span>
-      <div className="flex items-center justify-between gap-6">
+    <div className="flex w-full flex-col gap-1.5 rounded-2xl border border-slate-200 bg-white p-4 shadow-card sm:gap-3 sm:rounded-3xl sm:p-6">
+      <span className="text-[10px] uppercase tracking-[0.2em] text-slate-500 sm:text-xs sm:tracking-[0.3em]">{label}</span>
+      <div className="flex items-center justify-between gap-4 sm:gap-6">
         <button
           type="button"
           onClick={() => onChange(Math.max(min, value - 1))}
-          className="h-10 w-10 rounded-full border border-slate-200 text-lg font-semibold text-ink transition hover:border-ink"
+          className="h-9 w-9 rounded-full border border-slate-200 text-base font-semibold text-ink transition hover:border-ink sm:h-10 sm:w-10 sm:text-lg"
         >
           -
         </button>
         <div className="flex flex-col items-center">
-          <span className="font-display text-4xl text-ink">{value}</span>
-          <span className="text-xs text-slate-500">kids</span>
+          <span className="font-display text-3xl text-ink sm:text-4xl">{value}</span>
+          <span className="text-[10px] text-slate-500 sm:text-xs">kids</span>
         </div>
         <button
           type="button"
           onClick={() => onChange(Math.min(max, value + 1))}
-          className="h-10 w-10 rounded-full border border-slate-200 text-lg font-semibold text-ink transition hover:border-ink"
+          className="h-9 w-9 rounded-full border border-slate-200 text-base font-semibold text-ink transition hover:border-ink sm:h-10 sm:w-10 sm:text-lg"
         >
           +
         </button>
-      </div>
-      <div className="flex justify-between text-xs text-slate-400">
-        <span>{min}</span>
-        <span>{max}</span>
       </div>
     </div>
   );

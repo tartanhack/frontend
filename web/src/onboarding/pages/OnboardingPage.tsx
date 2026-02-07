@@ -63,24 +63,24 @@ export default function OnboardingPage() {
   if (!step) return null;
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-4 pt-6 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:pt-8">
-        <div>
-          <p className="text-xs uppercase tracking-[0.4em] text-slate-500">Monty</p>
-          <p className="text-lg font-semibold text-ink">Parent onboarding</p>
+    <div className="flex h-[100dvh] flex-col overflow-hidden">
+      <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-4 pt-3 sm:px-6 sm:pt-8">
+        <div className="min-w-0">
+          <p className="text-[10px] uppercase tracking-[0.4em] text-slate-500 sm:text-xs">Monty</p>
+          <p className="text-base font-semibold text-ink sm:text-lg">Parent onboarding</p>
         </div>
-        <div className="w-full rounded-full border border-slate-200 bg-white px-4 py-2 text-xs text-slate-600 shadow-card sm:w-auto">
-          Demo session · {session?.displayName ?? 'Parent'}
+        <div className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[10px] text-slate-600 shadow-card sm:px-4 sm:py-2 sm:text-xs">
+          Demo · {session?.displayName ?? 'Parent'}
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto overscroll-contain">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
         <StepShell title={step.title} subtitle={step.subtitle} accent={step.accent}>
           {step.render(state, actions)}
         </StepShell>
       </div>
-      <div className="mx-auto flex w-full max-w-4xl flex-col items-stretch gap-4 px-4 pb-6 sm:items-center sm:px-6 sm:pb-8">
+      <div className="mx-auto flex w-full max-w-4xl flex-col items-stretch gap-2.5 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:items-center sm:gap-4 sm:px-6 sm:pb-8">
         <ProgressDots current={currentStep} total={steps.length} />
-        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-center">
+        <div className="flex w-full items-center justify-center gap-3 sm:w-auto">
           {currentStep > 0 ? <SecondaryButton onClick={goBack}>Back</SecondaryButton> : null}
           <PrimaryButton onClick={goNext} disabled={!canContinue}>
             {isLast ? 'Enter dashboard' : 'Continue'}
