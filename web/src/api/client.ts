@@ -206,8 +206,26 @@ export interface ApiChatResponse {
   memory_updated: boolean;
 }
 
-export function sendChatMessage(childId: string, message: string) {
-  return post<ApiChatResponse>('/coaching/chat', { child_id: childId, message });
+export function sendChatMessage(childId: string, message: string, context?: string) {
+  return post<ApiChatResponse>('/coaching/chat', { child_id: childId, message, context });
+}
+
+// ---- Proactive Nudge ----
+
+export interface ApiProactiveNudge {
+  has_nudge: boolean;
+  message: string | null;
+  saving_tip: string | null;
+  prediction: {
+    item: string;
+    merchant: string;
+    amount: number;
+    confidence: number;
+  } | null;
+}
+
+export function fetchProactiveNudge(childId: string) {
+  return get<ApiProactiveNudge>(`/coaching/proactive-nudge/${childId}`);
 }
 
 // ---- Proactive Risk Check ----

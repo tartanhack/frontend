@@ -3,6 +3,7 @@ import { Flame, PiggyBank } from 'lucide-react';
 import MontyCompanion from '../components/MontyCompanion';
 import SavingsGoalCard from '../components/SavingsGoalCard';
 import ProactiveAlertBanner from '../components/ProactiveAlertBanner';
+import ProactiveNudgeCard from '../components/ProactiveNudgeCard';
 import WaitPromptModal from '../components/WaitPromptModal';
 import { fetchChildGoals, fetchChildStreak, fetchChildImpulseScores, fetchCheckRisk, dismissAlert } from '@/api/client';
 import type { ApiImpulseScore, ApiCheckRiskResponse } from '@/api/client';
@@ -127,6 +128,9 @@ export default function KidHome({ kidName = 'Emma', kidId = '' }: Props) {
         streakDays={streak.currentDays}
         message={montyMessage}
       />
+
+      {/* Proactive Nudge — Daily Check-in */}
+      <ProactiveNudgeCard childId={kidId} childName={kidName} />
 
       {/* Proactive Alerts */}
       {riskData && (riskData.predictions.length > 0 || riskData.active_alerts.length > 0) && (

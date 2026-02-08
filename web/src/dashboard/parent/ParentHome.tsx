@@ -1,29 +1,27 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { Target, Activity, Brain, Zap, DollarSign, MessageCircle } from 'lucide-react';
 import HabitStrengthCard from '../components/HabitStrengthCard';
 import SavingsGoalCard from '../components/SavingsGoalCard';
 import ActivityFeed from '../components/ActivityFeed';
 import InsightCard from '../components/InsightCard';
 import ProactiveAlertBanner from '../components/ProactiveAlertBanner';
+import MontyCheckinFeed from '../components/MontyCheckinFeed';
 import { useMontyData } from '@/api/MontyDataProvider';
-import { fetchChildInsights, fetchCheckRisk, dismissAlert } from '@/api/client';
-import type { ApiCheckRiskResponse } from '@/api/client';
+import { dismissAlert } from '@/api/client';
+import type { ApiMemory } from '@/api/client';
 import {
   transformHabitScore,
   transformOverviewGoal,
   decisionsToActivity,
-  transformInsights,
 } from '@/api/transforms';
-import type { Goal, HabitScore, Activity as ActivityType, Insight } from '../mockData';
+import type { Goal, HabitScore, Activity as ActivityType } from '../mockData';
 
 interface Props {
   familyName?: string;
 }
 
 export default function ParentHome({ familyName = 'The Thompsons' }: Props) {
-  const { overview, loading } = useMontyData();
-  const [insights, setInsights] = useState<Insight[]>([]);
-  const [riskData, setRiskData] = useState<ApiCheckRiskResponse | null>(null);
+  const { overview, insights, riskData, loading } = useMontyData();
 
   // Derive data from overview
   const children = overview?.children ?? [];
@@ -57,6 +55,9 @@ export default function ParentHome({ familyName = 'The Thompsons' }: Props) {
       allActivity.push(...activities);
     });
 
+    // Sort all activity by timestamp descending
+    allActivity.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+
     familyScore = {
       score: Math.round(totalScore / children.length),
       label: totalScore / children.length >= 70 ? 'Excellent habits!' : 'Building momentum',
@@ -71,26 +72,8 @@ export default function ParentHome({ familyName = 'The Thompsons' }: Props) {
     };
   }
 
-  // Fetch insights + risk data for first child
-  useEffect(() => {
-    if (children.length === 0) return;
-    const child = children[0];
-    fetchChildInsights(child.id)
-      .then((data) => {
-        setInsights(transformInsights(data.insights, child.id, child.name));
-      })
-      .catch(() => {});
-    fetchCheckRisk(child.id)
-      .then(setRiskData)
-      .catch(() => {});
-  }, [children.length > 0 ? children[0].id : '']);
-
   const handleDismissAlert = useCallback((alertId: string) => {
     dismissAlert(alertId).catch(() => {});
-    setRiskData((prev) => prev ? {
-      ...prev,
-      active_alerts: prev.active_alerts.filter((a) => a.alert_id !== alertId),
-    } : prev);
   }, []);
 
   if (loading) {
@@ -182,6 +165,15 @@ export default function ParentHome({ familyName = 'The Thompsons' }: Props) {
           <ActivityFeed activities={allActivity} maxItems={4} />
         </div>
       )}
+
+      {/* Monty Check-in Activity */}
+      <MontyCheckinFeed
+        children={children.map((c) => ({
+          id: c.id,
+          name: c.name,
+          memories: (c.memories ?? []) as ApiMemory[],
+        }))}
+      />
 
       {/* AI Insights Preview */}
       {insights.length > 0 && (

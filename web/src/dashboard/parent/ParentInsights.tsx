@@ -1,12 +1,9 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Brain, Search, Shield, TrendingUp, Tag, Hash } from 'lucide-react';
 import InsightCard from '../components/InsightCard';
 import PredictionTimeline from '../components/PredictionTimeline';
 import { useMontyData } from '@/api/MontyDataProvider';
-import { fetchChildInsights, fetchChildImpulseScores, fetchCheckRisk } from '@/api/client';
-import type { ApiImpulseScore, ApiCheckRiskResponse } from '@/api/client';
-import { transformInsights, computeDecisionDistribution } from '@/api/transforms';
-import type { Insight } from '../mockData';
+import { computeDecisionDistribution } from '@/api/transforms';
 
 const FILTERS = [
   { id: 'all', label: 'All Types' },
@@ -17,41 +14,8 @@ const FILTERS = [
 ];
 
 export default function ParentInsights() {
-  const { overview, loading: dataLoading } = useMontyData();
+  const { insights, impulseScores, riskData, loading } = useMontyData();
   const [filter, setFilter] = useState('all');
-  const [insights, setInsights] = useState<Insight[]>([]);
-  const [impulseScores, setImpulseScores] = useState<ApiImpulseScore[]>([]);
-  const [riskData, setRiskData] = useState<ApiCheckRiskResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const children = overview?.children ?? [];
-
-  useEffect(() => {
-    if (children.length === 0) {
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    const firstChild = children[0];
-
-    Promise.all([
-      Promise.all(
-        children.map((child) =>
-          fetchChildInsights(child.id)
-            .then((data) => transformInsights(data.insights, child.id, child.name))
-            .catch(() => [] as Insight[]),
-        ),
-      ),
-      fetchChildImpulseScores(firstChild.id).catch(() => [] as ApiImpulseScore[]),
-      fetchCheckRisk(firstChild.id).catch(() => null as ApiCheckRiskResponse | null),
-    ]).then(([insightResults, scores, risk]) => {
-      setInsights(insightResults.flat());
-      setImpulseScores(scores);
-      setRiskData(risk);
-      setLoading(false);
-    });
-  }, [children.map((c) => c.id).join(',')]);
 
   // Pattern summary stats
   const patternStats = useMemo(() => {
@@ -82,7 +46,7 @@ export default function ParentInsights() {
       ? insights
       : insights.filter((i) => i.type === filter);
 
-  if (dataLoading || loading) {
+  if (loading) {
     return (
       <div className="space-y-6 pb-24">
         <div className="h-8 w-48 animate-pulse rounded bg-slate-200" />
